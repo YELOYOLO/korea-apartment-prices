@@ -29,6 +29,7 @@ import {
   serializeFilters,
   SORTS,
   toSearchArgs,
+  VOLUME_OPTIONS,
   type AreaBand,
   type Cluster,
   type Kind,
@@ -106,7 +107,45 @@ function warnings(i: SearchItem): Array<{ text: string; serious: boolean }> {
   return w;
 }
 
+function Comparables({ i }: { i: SearchItem }) {
+  const q = useQuery({ queryKey: ["comparables", i.id], queryFn: () => api.comparables(getClient(), i), staleTime: 600_000 });
+  if (q.isLoading) return <Loading rows={1} />;
+  if (q.isError) return <ErrorState error={q.error} onRetry={() => q.refetch()} />;
+  if (!q.data?.length) return <p className="text-xs text-muted">비교 거래를 불러오지 못했습니다.</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-xs">
+        <caption className="pb-1 text-left text-muted">
+          비교 시세에 쓴 실거래 (같은 단지, 전용 ±{Math.round((i.areaTolerance ?? 0) * 100)}%, 최근 {i.windowMonths}개월)
+        </caption>
+        <thead>
+          <tr className="text-muted">
+            <th className="py-1 pr-2 font-normal">계약일</th>
+            <th className="py-1 pr-2 font-normal">전용</th>
+            <th className="py-1 pr-2 font-normal">층</th>
+            <th className="py-1 pr-2 font-normal">거래가</th>
+            <th className="py-1 font-normal">유형</th>
+          </tr>
+        </thead>
+        <tbody>
+          {q.data.map((c, k) => (
+            <tr key={`${c.dealDate}-${k}`} className="border-t border-border">
+              <td className="py-1 pr-2">{c.dealDate}</td>
+              <td className="py-1 pr-2">{c.areaM2}㎡</td>
+              <td className="py-1 pr-2">{c.floor ?? "—"}</td>
+              <td className="py-1 pr-2">{formatKrwShort(c.priceKrw)}</td>
+              <td className="py-1">{c.dealingType ?? "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ItemCard({ i }: { i: SearchItem }) {
+  const [showComps, setShowComps] = useState(false);
+  const vsUmd = i.pyeongKrw !== null && i.umdMedianPyeongKrw ? i.pyeongKrw / i.umdMedianPyeongKrw - 1 : null;
   const links = i.kind === "auction" ? null : listingSearchLinks({ aptName: i.name, umdName: i.umdName }, sggName(i.lawdCd));
   const linkCls = "min-h-11 content-center rounded-lg border border-border px-3 text-sm font-semibold text-brand-text hover:bg-surface-muted";
   return (
@@ -149,6 +188,16 @@ function ItemCard({ i }: { i: SearchItem }) {
           </dd>
         </div>
       </dl>
+      <p className="text-xs text-text-secondary">
+        {i.pyeongKrw !== null && <>평당 {formatKrwShort(i.pyeongKrw)}</>}
+        {vsUmd !== null && (
+          <>
+            {" "}
+            (법정동 평균 {formatKrwShort(i.umdMedianPyeongKrw!)} 대비 {vsUmd < 0 ? `${pct(-vsUmd)}% 낮음` : `${pct(vsUmd)}% 높음`})
+          </>
+        )}
+        {" · "}이 단지 거래량 최근 1년 {i.deals12m}건 (3개월 {i.deals3m}건)
+      </p>
       <p className="text-xs text-text-secondary">산정 방법: {method(i)}</p>
       <ul className="space-y-0.5 text-xs" aria-label="주의 사항">
         {warnings(i).map((w) => (
@@ -173,7 +222,13 @@ function ItemCard({ i }: { i: SearchItem }) {
             온비드 상세 보기
           </a>
         )}
+        {i.estimateKrw !== null && (
+          <button type="button" aria-expanded={showComps} onClick={() => setShowComps((v) => !v)} className="min-h-11 px-3 text-sm font-semibold text-text-secondary">
+            {showComps ? "비교 거래 숨기기" : `비교 거래 ${i.comparableCount}건 보기`}
+          </button>
+        )}
       </div>
+      {showComps && <Comparables i={i} />}
     </li>
   );
 }
@@ -271,6 +326,14 @@ function FilterSheet({ draft, setDraft, onApply, onClose }: { draft: SearchFilte
               </option>
             ))}
           </SelectField>
+          <SelectField label="거래량 (이 단지 최근 1년)" value={draft.volumeMin ?? ""} onChange={(e) => setDraft({ ...draft, volumeMin: e.target.value ? Number(e.target.value) : null })}>
+            <option value="">전체</option>
+            {VOLUME_OPTIONS.map((v) => (
+              <option key={v} value={v}>
+                {v}건 이상
+              </option>
+            ))}
+          </SelectField>
           <SelectField label="정렬" value={draft.sort} onChange={(e) => setDraft({ ...draft, sort: e.target.value as Sort })}>
             {(Object.keys(SORTS) as Sort[]).map((s) => (
               <option key={s} value={s}>
@@ -279,16 +342,20 @@ function FilterSheet({ draft, setDraft, onApply, onClose }: { draft: SearchFilte
             ))}
           </SelectField>
         </div>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" className="size-5" checked={draft.belowAvg} onChange={(e) => setDraft({ ...draft, belowAvg: e.target.checked })} />
+          평당가가 법정동 평균(최근 1년 중위값)보다 낮은 것만
+        </label>
         <fieldset disabled className="space-y-1 rounded-lg bg-surface-muted p-3">
           <legend className="sr-only">준비 중인 필터</legend>
           <p className="text-sm font-semibold text-muted">준비 중 (데이터 확보 후 제공)</p>
-          <p className="text-xs text-muted">세대수 · 전세가율 · 갭투자금 · 역세권 · 평당가 지역 평균 비교 · 거래량 · 투자 위험 지표</p>
+          <p className="text-xs text-muted">세대수 · 전세가율 · 갭투자금 (공공데이터 활용 승인 대기) · 역세권 (역 위치 데이터 확보 필요) · 투자 위험 지표 (3차)</p>
         </fieldset>
         <div className="flex gap-2">
           <Button
             variant="secondary"
             className="flex-1"
-            onClick={() => setDraft({ ...draft, umd: null, apt: "", priceMin: null, priceMax: null, area: "all", built: null, days: DEFAULT_FILTERS.days, sort: DEFAULT_FILTERS.sort })}
+            onClick={() => setDraft({ ...draft, umd: null, apt: "", priceMin: null, priceMax: null, area: "all", built: null, days: DEFAULT_FILTERS.days, volumeMin: null, belowAvg: false, sort: DEFAULT_FILTERS.sort })}
           >
             초기화
           </Button>

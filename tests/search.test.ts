@@ -26,7 +26,9 @@ describe("filters in the URL", () => {
       area: "m",
       built: 10,
       days: 180,
-      sort: "price",
+      volumeMin: 10,
+      belowAvg: true,
+      sort: "volume",
       view: "list",
       bounds: [37.4, 126.9, 37.6, 127.1],
     };
@@ -82,6 +84,8 @@ describe("search arguments", () => {
       p_built_after: 2016,
       p_days: 90,
       p_limit: 500,
+      p_volume_min: null,
+      p_below_umd_avg: false,
     });
   });
 
@@ -103,8 +107,8 @@ describe("labels", () => {
   it("formats price ranges and chips", () => {
     expect(priceRangeLabel(30_000, 60_000)).toBe("3~6억");
     expect(priceRangeLabel(null, 35_000)).toBe("3.5억 이하");
-    const chips = activeChips({ ...DEFAULT_FILTERS, priceMin: 150_000, discountMin: null, bounds: [1, 2, 3, 4] });
-    expect(chips.map((c) => c.label)).toEqual(["15억 이상", "할인율 제한 없음", "지도 영역"]);
+    const chips = activeChips({ ...DEFAULT_FILTERS, priceMin: 150_000, discountMin: null, volumeMin: 5, belowAvg: true, bounds: [1, 2, 3, 4] });
+    expect(chips.map((c) => c.label)).toEqual(["15억 이상", "할인율 제한 없음", "최근 1년 거래 5건 이상", "평당가 법정동 평균 이하", "지도 영역"]);
   });
 });
 

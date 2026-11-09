@@ -31,7 +31,9 @@ export const PRICE_PRESETS = [
 export const DISCOUNT_OPTIONS = [5, 10, 15, 20, 25, 30, 35, 40] as const;
 export const BUILT_OPTIONS = [5, 10, 20, 30] as const;
 export const DAYS_OPTIONS = [30, 90, 180, 365] as const;
-export const SORTS = { discount: "할인율 높은 순", price: "가격 낮은 순", newest: "최신 순" } as const;
+export const SORTS = { discount: "할인율 높은 순", price: "가격 낮은 순", newest: "최신 순", volume: "거래량 많은 순" } as const;
+/** Minimum deals of the complex in the last 12 months. */
+export const VOLUME_OPTIONS = [3, 5, 10, 20] as const;
 export type Sort = keyof typeof SORTS;
 
 export interface SearchFilters {
@@ -50,6 +52,10 @@ export interface SearchFilters {
   /** 준공 N년 이내. */
   built: number | null;
   days: number;
+  /** 최근 1년 거래 N건 이상 (the complex's lot). */
+  volumeMin: number | null;
+  /** 평당가 below the 법정동 median. */
+  belowAvg: boolean;
   sort: Sort;
   view: "map" | "list";
   /** [south, west, north, east] when searching the current map area. */
@@ -68,6 +74,8 @@ export const DEFAULT_FILTERS: SearchFilters = {
   area: "all",
   built: null,
   days: 90,
+  volumeMin: null,
+  belowAvg: false,
   sort: "discount",
   view: "map",
   bounds: null,
@@ -105,6 +113,8 @@ export function parseFilters(qs: string): SearchFilters {
   f.built = int(p.get("built"), 1, 100);
   const days = int(p.get("days"), 1, 366);
   if (days) f.days = days;
+  f.volumeMin = int(p.get("vol"), 1, 1000);
+  f.belowAvg = p.get("below") === "1";
   const sort = p.get("sort");
   if (sort && sort in SORTS) f.sort = sort as Sort;
   if (p.get("view") === "list") f.view = "list";
@@ -127,6 +137,8 @@ export function serializeFilters(f: SearchFilters): string {
   if (f.area !== "all") p.set("area", f.area);
   if (f.built !== null) p.set("built", String(f.built));
   if (f.days !== DEFAULT_FILTERS.days) p.set("days", String(f.days));
+  if (f.volumeMin !== null) p.set("vol", String(f.volumeMin));
+  if (f.belowAvg) p.set("below", "1");
   if (f.sort !== DEFAULT_FILTERS.sort) p.set("sort", f.sort);
   if (f.view !== "map") p.set("view", f.view);
   if (f.bounds) p.set("b", f.bounds.map((x) => x.toFixed(5)).join(","));
@@ -156,6 +168,8 @@ export function toSearchArgs(f: SearchFilters, now = new Date()) {
     p_bounds: f.bounds,
     p_sort: f.sort,
     p_limit: 500,
+    p_volume_min: f.volumeMin,
+    p_below_umd_avg: f.belowAvg,
   };
 }
 
@@ -171,6 +185,8 @@ export function activeChips(f: SearchFilters): Array<{ key: string; label: strin
   if (f.area !== "all") chips.push({ key: "area", label: AREA_BANDS[f.area].label, clear: { area: "all" } });
   if (f.built !== null) chips.push({ key: "built", label: `준공 ${f.built}년 이내`, clear: { built: null } });
   if (f.days !== DEFAULT_FILTERS.days) chips.push({ key: "days", label: `최근 ${daysLabel(f.days)}`, clear: { days: DEFAULT_FILTERS.days } });
+  if (f.volumeMin !== null) chips.push({ key: "vol", label: `최근 1년 거래 ${f.volumeMin}건 이상`, clear: { volumeMin: null } });
+  if (f.belowAvg) chips.push({ key: "below", label: "평당가 법정동 평균 이하", clear: { belowAvg: false } });
   if (f.bounds) chips.push({ key: "b", label: "지도 영역", clear: { bounds: null } });
   return chips;
 }

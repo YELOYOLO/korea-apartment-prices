@@ -463,11 +463,17 @@ export interface SearchItem {
   computedAt: string | null;
   lat: number | null;
   lng: number | null;
+  /** The complex's uncancelled deals in the last 12 / 3 months. */
+  deals12m: number;
+  deals3m: number;
+  /** Price per 3.3m² (평) and the 법정동 median of the last 12 months. */
+  pyeongKrw: number | null;
+  umdMedianPyeongKrw: number | null;
 }
 
 export async function search(client: Client, args: Record<string, unknown>): Promise<{ items: SearchItem[]; total: number }> {
   type Row = Record<string, unknown>;
-  const rows = unwrap(await client.rpc("kr_search", args)) as Row[];
+  const rows = unwrap(await client.rpc("kr_map_search", args)) as Row[];
   const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
   return {
     total: rows.length ? Number(rows[0]!.total_count) : 0,
@@ -498,6 +504,10 @@ export async function search(client: Client, args: Record<string, unknown>): Pro
       computedAt: (r.computed_at as string | null) ?? null,
       lat: num(r.lat),
       lng: num(r.lng),
+      deals12m: Number(r.deals_12m ?? 0),
+      deals3m: Number(r.deals_3m ?? 0),
+      pyeongKrw: num(r.pyeong_krw),
+      umdMedianPyeongKrw: num(r.umd_median_pyeong_krw),
     })),
   };
 }
@@ -506,4 +516,30 @@ export async function search(client: Client, args: Record<string, unknown>): Pro
 export async function umdList(client: Client, lawdCd: string): Promise<string[]> {
   const rows = unwrap(await client.rpc("kr_umd_list", { p_lawd_cd: lawdCd })) as Array<{ umd_name: string }>;
   return rows.map((r) => r.umd_name);
+}
+
+export interface Comparable {
+  dealDate: string;
+  aptName: string;
+  areaM2: number;
+  floor: number | null;
+  priceKrw: number;
+  dealingType: string | null;
+}
+
+/** The deals behind an item's market value (kr_comparables, 0005). */
+export async function comparables(client: Client, i: Pick<SearchItem, "lawdCd" | "umdName" | "jibun" | "areaM2" | "areaTolerance" | "windowMonths" | "id" | "kind">): Promise<Comparable[]> {
+  if (!i.jibun || i.areaM2 === null || i.areaTolerance === null || i.windowMonths === null) return [];
+  const rows = unwrap(
+    await client.rpc("kr_comparables", {
+      p_lawd_cd: i.lawdCd,
+      p_umd: i.umdName,
+      p_jibun: i.jibun,
+      p_area: i.areaM2,
+      p_tol: i.areaTolerance,
+      p_months: i.windowMonths,
+      p_exclude: i.kind === "auction" ? null : i.id,
+    }),
+  ) as Array<{ deal_date: string; apt_name: string; exclusive_area_m2: number | string; floor: number | null; price_krw: number | string; dealing_type: string | null }>;
+  return rows.map((r) => ({ dealDate: r.deal_date, aptName: r.apt_name, areaM2: Number(r.exclusive_area_m2), floor: r.floor, priceKrw: Number(r.price_krw), dealingType: r.dealing_type }));
 }
