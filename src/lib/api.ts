@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AptTrade } from "@kr/molit.ts";
 import type { OnbidItem } from "@kr/onbid.ts";
+import type { Flagship } from "@kr/bargains.ts";
 import type { KrSaleListing } from "@kr/valuation.ts";
 
 type Client = SupabaseClient;
@@ -348,6 +349,54 @@ export async function tradesForAuctionItems(client: Client, items: OnbidItem[], 
         await client.from("kr_apt_trades").select(TRADE_COLUMNS).eq("lawd_cd", lawdCd).eq("cancelled", false).gte("deal_date", sinceDate).or(keys.slice(k, k + 40).join(",")).limit(5000),
       );
       out.push(...rows.map((r) => mapTrade(r as TradeRow)));
+    }
+  }
+  return out;
+}
+
+/** 대장 아파트: the top complexes by 원/m² of each 시군구 (kr_flagships, 0002). At most 60 codes. */
+export async function flagships(client: Client, lawdCodes: string[], perRegion = 3): Promise<Flagship[]> {
+  type Row = {
+    lawd_cd: string;
+    apt_seq: string;
+    apt_name: string;
+    umd_name: string;
+    jibun: string | null;
+    build_year: number | null;
+    deal_count: number | string;
+    median_price_per_m2: number | string;
+    last_deal_date: string;
+    rank: number;
+  };
+  const rows = unwrap(await client.rpc("kr_flagships", { p_lawd_codes: lawdCodes.slice(0, 60), p_per_region: perRegion })) as Row[];
+  return rows.map((r) => ({
+    lawdCd: r.lawd_cd,
+    aptSeq: r.apt_seq,
+    aptName: r.apt_name,
+    umdName: r.umd_name,
+    jibun: r.jibun,
+    buildYear: r.build_year,
+    dealCount: Number(r.deal_count),
+    medianPricePerM2: Number(r.median_price_per_m2),
+    lastDealDate: r.last_deal_date,
+    rank: r.rank,
+  }));
+}
+
+/** Uncancelled deals since `sinceDate` of the given flagship complexes, paged past the row cap. */
+export async function tradesForFlagships(client: Client, list: Flagship[], sinceDate: string): Promise<AptTrade[]> {
+  const seqs = [...new Set(list.map((f) => f.aptSeq))];
+  const lawds = [...new Set(list.map((f) => f.lawdCd))]; // leading column of kr_apt_trades_complex_idx
+  const out: AptTrade[] = [];
+  for (let k = 0; k < seqs.length; k += 50) {
+    const chunk = seqs.slice(k, k + 50);
+    const page = 1000;
+    for (let from = 0; from < 50_000; from += page) {
+      const rows = unwrap(
+        await client.from("kr_apt_trades").select(TRADE_COLUMNS).in("lawd_cd", lawds).in("apt_seq", chunk).eq("cancelled", false).gte("deal_date", sinceDate).order("id").range(from, from + page - 1),
+      );
+      out.push(...rows.map((r) => mapTrade(r as TradeRow)));
+      if (rows.length < page) break;
     }
   }
   return out;
