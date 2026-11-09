@@ -1,0 +1,26 @@
+{
+  "header": { "resultCode": "00", "resultMsg": "NORMAL_CODE" },
+  "body": {
+    "items": {
+      "item": [
+        {
+          "cltrMngNo": "2026-0100-000001", "pbctCdtnNo": "5000001", "onbidCltrno": "1800001", "onbidPbancNo": "760001", "pbctNo": "9800001",
+          "onbidCltrNm": "서울특별시 마포구 아현동 1 마포테스트파크 101동 1203호", "lctnSdnm": "서울특별시", "lctnSggnm": "마포구", "lctnEmdNm": "아현동",
+          "ltnoPnu": "1144010100100010000", "cltrUsgMclsCtgrNm": "주거용건물", "cltrUsgSclsCtgrNm": "아파트", "prptDivNm": "압류재산",
+          "apslEvlAmt": "1600000000", "lowstBidPrcIndctCont": "1120000000", "usbdNft": "2", "cltrBidBgngDt": "202611090900", "cltrBidEndDt": "202611111700",
+          "pbctStatCd": "0002", "pbctStatNm": "입찰진행중", "pvctTrgtYn": "N", "bldSqms": "84.59", "landSqms": "30.1", "evcRsbyTrgtCont": "매수자", "alcYn": "N",
+          "thnlImgUrlAdr": "https://www.onbid.co.kr/op/cm/syc/filemng/x.jpg", "mdfcnDt": "20261105101419"
+        },
+        {
+          "cltrMngNo": "2026-0100-000002", "pbctCdtnNo": "5000002", "onbidCltrno": "1800002", "onbidPbancNo": "760002", "pbctNo": "9800002",
+          "onbidCltrNm": "서울특별시 마포구 망원동 산 5-3 근린생활시설", "lctnSdnm": "서울특별시", "lctnSggnm": "마포구", "lctnEmdNm": "망원동",
+          "ltnoPnu": "1144012300200050003", "cltrUsgMclsCtgrNm": "상가용및업무용건물", "cltrUsgSclsCtgrNm": "근린생활시설",
+          "apslEvlAmt": "", "lowstBidPrcIndctCont": "비공개", "usbdNft": "0", "cltrBidBgngDt": "299901021000", "cltrBidEndDt": "299901021000",
+          "pvctTrgtYn": "Y", "alcYn": "Y", "thnlImgUrlAdr": "http://evil.example/x.jpg"
+        },
+        { "cltrMngNo": "", "pbctCdtnNo": "1", "onbidCltrNm": "missing key" }
+      ]
+    },
+    "numOfRows": 5000, "pageNo": 1, "totalCount": 3
+  }
+}

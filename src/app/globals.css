@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* Mydream palette: deep indigo brand, warm neutrals. Light and dark. */
+:root {
+  --c-bg: #f6f7fb;
+  --c-surface: #ffffff;
+  --c-surface-muted: #eef0f6;
+  --c-border: #dde1ea;
+  --c-border-strong: #c4cad6;
+  --c-text: #161a2b;
+  --c-text-secondary: #424a63;
+  --c-muted: #6b7390;
+  --c-brand: #3b4cca;
+  --c-brand-hover: #2f3eae;
+  --c-brand-soft: #e7eafb;
+  --c-brand-text: #2f3eae;
+  --c-on-brand: #ffffff;
+  --c-good: #12805c;
+  --c-good-soft: #e3f5ed;
+  --c-warning: #9a5b00;
+  --c-warning-soft: #fdf1dc;
+  --c-danger: #b42318;
+  --c-danger-soft: #fdeceb;
+  --c-info: #1d5fa8;
+  --c-info-soft: #e5f0fb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #0f1220;
+    --c-surface: #171b2e;
+    --c-surface-muted: #20253b;
+    --c-border: #2b3150;
+    --c-border-strong: #3a4166;
+    --c-text: #eef0f8;
+    --c-text-secondary: #c3c8dc;
+    --c-muted: #9198b3;
+    --c-brand: #7b8cff;
+    --c-brand-hover: #95a3ff;
+    --c-brand-soft: #262d55;
+    --c-brand-text: #a9b4ff;
+    --c-on-brand: #0f1220;
+    --c-good: #4fd1a1;
+    --c-good-soft: #133a2d;
+    --c-warning: #f5b84a;
+    --c-warning-soft: #3d2c10;
+    --c-danger: #ff8a80;
+    --c-danger-soft: #4a1d1a;
+    --c-info: #7ab7ff;
+    --c-info-soft: #16304d;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-surface-muted: var(--c-surface-muted);
+  --color-border: var(--c-border);
+  --color-border-strong: var(--c-border-strong);
+  --color-text: var(--c-text);
+  --color-text-secondary: var(--c-text-secondary);
+  --color-muted: var(--c-muted);
+  --color-brand: var(--c-brand);
+  --color-brand-hover: var(--c-brand-hover);
+  --color-brand-soft: var(--c-brand-soft);
+  --color-brand-text: var(--c-brand-text);
+  --color-on-brand: var(--c-on-brand);
+  --color-good: var(--c-good);
+  --color-good-soft: var(--c-good-soft);
+  --color-warning: var(--c-warning);
+  --color-warning-soft: var(--c-warning-soft);
+  --color-danger: var(--c-danger);
+  --color-danger-soft: var(--c-danger-soft);
+  --color-info: var(--c-info);
+  --color-info-soft: var(--c-info-soft);
+  --font-sans: "Pretendard", system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+}
+
+html,
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}

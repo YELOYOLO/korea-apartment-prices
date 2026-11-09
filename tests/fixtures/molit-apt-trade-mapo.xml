@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<response>
+  <header>
+    <resultCode>000</resultCode>
+    <resultMsg>OK</resultMsg>
+  </header>
+  <body>
+    <items>
+      <item>
+        <aptDong>101</aptDong>
+        <aptNm>마포테스트파크</aptNm>
+        <aptSeq>11440-1001</aptSeq>
+        <buildYear>2014</buildYear>
+        <cdealDay> </cdealDay>
+        <cdealType> </cdealType>
+        <dealAmount>    170,000</dealAmount>
+        <dealDay>3</dealDay>
+        <dealMonth>9</dealMonth>
+        <dealYear>2026</dealYear>
+        <dealingGbn>중개거래</dealingGbn>
+        <excluUseAr>84.59</excluUseAr>
+        <floor>12</floor>
+        <jibun>1</jibun>
+        <sggCd>11440</sggCd>
+        <umdNm>아현동</umdNm>
+      </item>
+      <item>
+        <aptNm>마포테스트파크</aptNm>
+        <aptSeq>11440-1001</aptSeq>
+        <buildYear>2014</buildYear>
+        <cdealDay>26.09.20</cdealDay>
+        <cdealType>O</cdealType>
+        <dealAmount>210,000</dealAmount>
+        <dealDay>15</dealDay>
+        <dealMonth>9</dealMonth>
+        <dealYear>2026</dealYear>
+        <dealingGbn>직거래</dealingGbn>
+        <excluUseAr>84.59</excluUseAr>
+        <floor>20</floor>
+        <sggCd>11440</sggCd>
+        <umdNm>아현동</umdNm>
+      </item>
+      <item>
+        <aptNm>e편한세상 &amp; 테스트</aptNm>
+        <dealAmount></dealAmount>
+        <dealDay>1</dealDay>
+        <dealMonth>9</dealMonth>
+        <dealYear>2026</dealYear>
+        <excluUseAr>59.9</excluUseAr>
+      </item>
+    </items>
+    <numOfRows>1000</numOfRows>
+    <pageNo>1</pageNo>
+    <totalCount>3</totalCount>
+  </body>
+</response>
