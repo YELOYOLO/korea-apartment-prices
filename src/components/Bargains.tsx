@@ -142,7 +142,7 @@ function FlagshipRow({ f, deals }: { f: Flagship; deals: number }) {
 }
 
 export default function Bargains() {
-  const { region, setRegion, list, deals, dealsBySeq, cheapAuctions, byRegion, loading, error, retry } = useBargainData();
+  const { region, setRegion, list, deals, dealsByLot, cheapAuctions, byRegion, loading, error, retry } = useBargainData();
 
   return (
     <div className="space-y-6">
@@ -200,7 +200,7 @@ export default function Bargains() {
                 <h3 className="pt-3 text-sm font-bold text-text-secondary">{sggName(code)}</h3>
                 <ul>
                   {fs.map((f) => (
-                    <FlagshipRow key={f.aptSeq} f={f} deals={dealsBySeq.get(f.aptSeq)?.length ?? 0} />
+                    <FlagshipRow key={f.key} f={f} deals={dealsByLot.get(f.key)?.length ?? 0} />
                   ))}
                 </ul>
               </div>

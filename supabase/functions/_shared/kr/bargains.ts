@@ -21,7 +21,8 @@ export const BARGAIN_VERY_CHEAP = 0.25;
 /** One flagship (대장) complex of a 시군구, as kr_flagships() returns it. */
 export interface Flagship {
   lawdCd: string;
-  aptSeq: string;
+  /** The complex's lot, "<LAWD_CD>|<법정동>|<지번>" (the 실거래가 API used has no aptSeq). */
+  key: string;
   aptName: string;
   umdName: string;
   jibun: string | null;
@@ -66,7 +67,7 @@ export function findBargainDeals(
     if (t.cancelled || t.dealDate < since || t.dealDate > today) continue;
     const others = trades.filter((o) => o.sourceKey !== t.sourceKey);
     const { estimate } = estimateMarketValue(
-      { id: t.sourceKey, complexName: t.aptName, aptSeq: t.aptSeq, umdName: t.umdName, exclusiveAreaM2: t.exclusiveAreaM2, askingPriceKrw: t.priceKrw, floor: t.floor },
+      { id: t.sourceKey, complexName: t.aptName, aptSeq: t.aptSeq, umdName: t.umdName, jibun: t.jibun, exclusiveAreaM2: t.exclusiveAreaM2, askingPriceKrw: t.priceKrw, floor: t.floor },
       others,
       { ...opts, now },
     );

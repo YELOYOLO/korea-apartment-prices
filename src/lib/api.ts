@@ -371,7 +371,7 @@ export async function flagships(client: Client, lawdCodes: string[], perRegion =
   const rows = unwrap(await client.rpc("kr_flagships", { p_lawd_codes: lawdCodes.slice(0, 60), p_per_region: perRegion })) as Row[];
   return rows.map((r) => ({
     lawdCd: r.lawd_cd,
-    aptSeq: r.apt_seq,
+    key: r.apt_seq,
     aptName: r.apt_name,
     umdName: r.umd_name,
     jibun: r.jibun,
@@ -383,20 +383,27 @@ export async function flagships(client: Client, lawdCodes: string[], perRegion =
   }));
 }
 
-/** Uncancelled deals since `sinceDate` of the given flagship complexes, paged past the row cap. */
+/** Uncancelled deals since `sinceDate` at the lots (법정동 + 지번) of the given flagships, paged past the row cap. */
 export async function tradesForFlagships(client: Client, list: Flagship[], sinceDate: string): Promise<AptTrade[]> {
-  const seqs = [...new Set(list.map((f) => f.aptSeq))];
-  const lawds = [...new Set(list.map((f) => f.lawdCd))]; // leading column of kr_apt_trades_complex_idx
+  const byLawd = new Map<string, Set<string>>();
+  for (const f of list) {
+    if (!f.jibun) continue;
+    const set = byLawd.get(f.lawdCd) ?? new Set<string>();
+    set.add(`and(umd_name.eq.${quote(f.umdName)},jibun.eq.${quote(f.jibun)})`);
+    byLawd.set(f.lawdCd, set);
+  }
   const out: AptTrade[] = [];
-  for (let k = 0; k < seqs.length; k += 50) {
-    const chunk = seqs.slice(k, k + 50);
-    const page = 1000;
-    for (let from = 0; from < 50_000; from += page) {
-      const rows = unwrap(
-        await client.from("kr_apt_trades").select(TRADE_COLUMNS).in("lawd_cd", lawds).in("apt_seq", chunk).eq("cancelled", false).gte("deal_date", sinceDate).order("id").range(from, from + page - 1),
-      );
-      out.push(...rows.map((r) => mapTrade(r as TradeRow)));
-      if (rows.length < page) break;
+  for (const [lawdCd, set] of byLawd) {
+    const keys = [...set];
+    for (let k = 0; k < keys.length; k += 40) {
+      const page = 1000;
+      for (let from = 0; from < 50_000; from += page) {
+        const rows = unwrap(
+          await client.from("kr_apt_trades").select(TRADE_COLUMNS).eq("lawd_cd", lawdCd).eq("cancelled", false).gte("deal_date", sinceDate).or(keys.slice(k, k + 40).join(",")).order("id").range(from, from + page - 1),
+        );
+        out.push(...rows.map((r) => mapTrade(r as TradeRow)));
+        if (rows.length < page) break;
+      }
     }
   }
   return out;
@@ -422,4 +429,81 @@ export async function naverMapClientId(): Promise<string | null> {
   if (!res.ok) throw new ApiError(`지도 설정을 불러오지 못했습니다 (HTTP ${res.status}).`);
   const body = (await res.json()) as { naverMapClientId?: string };
   return body.naverMapClientId ?? null;
+}
+
+/** One result of kr_search (0004): a deal (대장 급매 / 저가 실거래) or a 공매 item. */
+export interface SearchItem {
+  kind: "flagship" | "lowdeal" | "auction";
+  id: string;
+  name: string;
+  lawdCd: string;
+  umdName: string;
+  jibun: string | null;
+  areaM2: number | null;
+  floor: number | null;
+  /** 실거래가 (deals) or 최저입찰가 (공매), KRW. */
+  priceKrw: number | null;
+  estimateKrw: number | null;
+  /** 1 - price / estimate; null = 비교 불가. */
+  discount: number | null;
+  /** 계약일 of a deal. */
+  eventDate: string | null;
+  /** 입찰 마감 of a 공매. */
+  bidEnd: string | null;
+  comparableCount: number;
+  windowMonths: number | null;
+  areaTolerance: number | null;
+  latestCompDate: string | null;
+  dealingType: string | null;
+  buildYear: number | null;
+  evictionBy: string | null;
+  privateContract: boolean | null;
+  failCount: number | null;
+  detailUrl: string | null;
+  computedAt: string | null;
+  lat: number | null;
+  lng: number | null;
+}
+
+export async function search(client: Client, args: Record<string, unknown>): Promise<{ items: SearchItem[]; total: number }> {
+  type Row = Record<string, unknown>;
+  const rows = unwrap(await client.rpc("kr_search", args)) as Row[];
+  const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  return {
+    total: rows.length ? Number(rows[0]!.total_count) : 0,
+    items: rows.map((r) => ({
+      kind: r.kind as SearchItem["kind"],
+      id: r.id as string,
+      name: r.name as string,
+      lawdCd: r.lawd_cd as string,
+      umdName: r.umd_name as string,
+      jibun: (r.jibun as string | null) ?? null,
+      areaM2: num(r.area_m2),
+      floor: num(r.floor),
+      priceKrw: num(r.price_krw),
+      estimateKrw: num(r.estimate_krw),
+      discount: num(r.discount),
+      eventDate: (r.event_date as string | null) ?? null,
+      bidEnd: (r.bid_end as string | null) ?? null,
+      comparableCount: Number(r.comparable_count ?? 0),
+      windowMonths: num(r.window_months),
+      areaTolerance: num(r.area_tolerance),
+      latestCompDate: (r.latest_comp_date as string | null) ?? null,
+      dealingType: (r.dealing_type as string | null) ?? null,
+      buildYear: num(r.build_year),
+      evictionBy: (r.eviction_by as string | null) ?? null,
+      privateContract: (r.private_contract as boolean | null) ?? null,
+      failCount: num(r.fail_count),
+      detailUrl: (r.detail_url as string | null) ?? null,
+      computedAt: (r.computed_at as string | null) ?? null,
+      lat: num(r.lat),
+      lng: num(r.lng),
+    })),
+  };
+}
+
+/** 법정동 of a 시군구 with deals in the last 12 months (kr_umd_list, 0004). */
+export async function umdList(client: Client, lawdCd: string): Promise<string[]> {
+  const rows = unwrap(await client.rpc("kr_umd_list", { p_lawd_cd: lawdCd })) as Array<{ umd_name: string }>;
+  return rows.map((r) => r.umd_name);
 }

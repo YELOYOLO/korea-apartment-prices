@@ -13,7 +13,8 @@
 --   discount = 1 - price / estimate; null = 비교 불가 (fewer than 3 comparables).
 -- * kr_auction_signals: the same for current residential 공매 items (minimum bid vs.
 --   the deals at the item's 법정동 + 지번); 지분 items are not valued.
--- * kr_refresh_signals(lawd) recomputes one 시군구; kr_refresh_due_signals() recomputes
+-- * kr_refresh_signals(lawd) recomputes one 시군구 (upsert; rows of deleted trades/items go
+--   with them by cascade, rows of older or cancelled deals are filtered out by kr_search); kr_refresh_due_signals() recomputes
 --   those whose trades or 공매 changed since (pg_cron).
 -- * kr_search(): the map/list search (region, 법정동, 단지명, type, price, discount, area,
 --   준공 연도, period, map bounds, sort, limit).
@@ -145,7 +146,6 @@ declare
   v_trades integer;
   v_auctions integer;
 begin
-  delete from public.kr_trade_signals s where s.lawd_cd = p_lawd_cd;
   insert into public.kr_trade_signals (trade_id, lawd_cd, estimate_krw, discount, comparable_count, window_months, area_tolerance, latest_comp_date, is_flagship)
   with t as (
     select
@@ -185,10 +185,13 @@ begin
   select v.id, p_lawd_cd, v.est::bigint, case when v.est is null then null else round(1 - v.p / v.est, 4) end,
          coalesce(v.cnt, v.widest, 0), v.months, v.tol, v.latest,
          exists (select 1 from flags where flags.lot = p_lawd_cd || '|' || v.ck)
-  from v;
+  from v
+  on conflict (trade_id) do update set
+    estimate_krw = excluded.estimate_krw, discount = excluded.discount, comparable_count = excluded.comparable_count,
+    window_months = excluded.window_months, area_tolerance = excluded.area_tolerance, latest_comp_date = excluded.latest_comp_date,
+    is_flagship = excluded.is_flagship, computed_at = now();
   get diagnostics v_trades = row_count;
 
-  delete from public.kr_auction_signals s where s.lawd_cd = p_lawd_cd;
   insert into public.kr_auction_signals (item_id, lawd_cd, estimate_krw, discount, comparable_count, window_months, area_tolerance, latest_comp_date)
   with t as (
     select x.id, x.umd_name || '|' || x.jibun as ck, x.exclusive_area_m2 as a, x.deal_date as d,
@@ -222,7 +225,11 @@ begin
   )
   select v.id, p_lawd_cd, v.est::bigint, case when v.est is null then null else round(1 - v.p / v.est, 4) end,
          coalesce(v.cnt, v.widest, 0), v.months, v.tol, v.latest
-  from v;
+  from v
+  on conflict (item_id) do update set
+    estimate_krw = excluded.estimate_krw, discount = excluded.discount, comparable_count = excluded.comparable_count,
+    window_months = excluded.window_months, area_tolerance = excluded.area_tolerance, latest_comp_date = excluded.latest_comp_date,
+    computed_at = now();
   get diagnostics v_auctions = row_count;
 
   insert into public.kr_signal_state (lawd_cd, computed_at, trade_rows, auction_rows)
@@ -335,6 +342,7 @@ as $$
     from public.kr_trade_signals s
     join public.kr_apt_trades t on t.id = s.trade_id
     where s.lawd_cd = any (p_lawd_codes[1:60])
+      and not t.cancelled
       and t.deal_date >= (current_date - make_interval(days => least(greatest(coalesce(p_days, 90), 1), 366)))::date
       and (case when s.is_flagship then 'flagship' else 'lowdeal' end) = any (p_types)
       and (p_built_after is null or t.build_year >= p_built_after)

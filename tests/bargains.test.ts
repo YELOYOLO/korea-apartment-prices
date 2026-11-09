@@ -9,7 +9,7 @@ function deal(p: Partial<AptTrade> & { priceKrw: number; dealDate: string }): Ap
   return {
     sourceKey: `k${n}`,
     lawdCd: "11680",
-    aptSeq: "11680-1",
+    aptSeq: null,
     aptName: "대장파크",
     umdName: "대치동",
     jibun: "1",
@@ -63,7 +63,7 @@ describe("findBargainDeals", () => {
   });
 
   it("does not compare deals of different complexes", () => {
-    const other = deal({ aptSeq: "11680-2", aptName: "옆단지", priceKrw: 1_000_000_000, dealDate: "2026-10-28" });
+    const other = deal({ aptName: "옆단지", jibun: "2", priceKrw: 1_000_000_000, dealDate: "2026-10-28" });
     expect(findBargainDeals([...market, other], { now })).toEqual([]);
   });
 });

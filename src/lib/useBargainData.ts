@@ -33,7 +33,7 @@ export function useBargainData() {
   const flags = useQuery({ queryKey: ["flagships", codes], enabled: codes.length > 0, queryFn: () => api.flagships(getClient(), codes) });
   const list = useMemo(() => flags.data ?? [], [flags.data]);
   const trades = useQuery({
-    queryKey: ["flagshipTrades", list.map((f) => f.aptSeq).join(",")],
+    queryKey: ["flagshipTrades", list.map((f) => f.key).join(",")],
     enabled: list.length > 0,
     queryFn: () => api.tradesForFlagships(getClient(), list, monthsAgo(13)),
   });
@@ -44,9 +44,12 @@ export function useBargainData() {
   });
 
   const deals: BargainDeal[] = useMemo(() => (trades.data ? findBargainDeals(trades.data) : []), [trades.data]);
-  const dealsBySeq = useMemo(() => {
+  const dealsByLot = useMemo(() => {
     const m = new Map<string, BargainDeal[]>();
-    for (const d of deals) if (d.trade.aptSeq) m.set(d.trade.aptSeq, [...(m.get(d.trade.aptSeq) ?? []), d]);
+    for (const d of deals) {
+      const k = `${d.trade.lawdCd}|${d.trade.umdName}|${d.trade.jibun}`;
+      m.set(k, [...(m.get(k) ?? []), d]);
+    }
     return m;
   }, [deals]);
   const cheapAuctions: AuctionValuation[] = useMemo(() => {
@@ -69,7 +72,7 @@ export function useBargainData() {
     setRegion,
     list,
     deals,
-    dealsBySeq,
+    dealsByLot,
     cheapAuctions,
     byRegion,
     loading: flags.isLoading || (list.length > 0 && trades.isLoading),
