@@ -543,3 +543,19 @@ export async function comparables(client: Client, i: Pick<SearchItem, "lawdCd" |
   ) as Array<{ deal_date: string; apt_name: string; exclusive_area_m2: number | string; floor: number | null; price_krw: number | string; dealing_type: string | null }>;
   return rows.map((r) => ({ dealDate: r.deal_date, aptName: r.apt_name, areaM2: Number(r.exclusive_area_m2), floor: r.floor, priceKrw: Number(r.price_krw), dealingType: r.dealing_type }));
 }
+
+export interface AiSearchResult {
+  /** Same shape as the map search filters (without the map bounds). */
+  filters: Record<string, unknown>;
+  reply: string;
+  mode: "ai" | "rules";
+  summary: string;
+  note?: "not_configured" | "limited" | "failed";
+}
+
+/** Natural-language (voice) search: the ai-search Edge Function turns the request into filters. */
+export async function aiSearch(client: Client, query: string, current: Record<string, unknown>): Promise<AiSearchResult> {
+  const { data, error } = await client.functions.invoke("ai-search", { body: { query, current } });
+  if (error) throw new ApiError("AI 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+  return data as AiSearchResult;
+}

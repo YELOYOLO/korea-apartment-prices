@@ -37,6 +37,7 @@ import {
   type Sort,
 } from "@/lib/search";
 import { getClient } from "@/lib/supabase";
+import { AgentBar } from "./AgentBar";
 import { RegionPicker } from "./RegionPicker";
 import { Badge, Button, EmptyState, ErrorState, Loading, SelectField, TextField } from "./ui";
 
@@ -493,6 +494,14 @@ export default function SearchMap() {
 
   return (
     <div className="space-y-3">
+      <AgentBar
+        filters={filters}
+        onApply={(f) => {
+          setSelected(null);
+          setListCount(30);
+          apply(f);
+        }}
+      />
       <form onSubmit={submit} className="sticky top-14 z-20 -mx-4 space-y-2 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur" aria-label="지도 검색">
         <RegionPicker idPrefix="search" value={{ sido: draft.sido, lawdCd: draft.sgg }} onChange={(r) => setDraft({ ...draft, sido: r.sido, sgg: r.lawdCd, umd: null, apt: "", bounds: null })} allowWholeSido />
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="매물 유형">

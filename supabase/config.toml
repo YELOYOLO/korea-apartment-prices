@@ -10,3 +10,6 @@ verify_jwt = false
 
 [functions.geocode]
 verify_jwt = true
+
+[functions.ai-search]
+verify_jwt = true

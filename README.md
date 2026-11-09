@@ -10,6 +10,9 @@
   - 할인율은 `kr_trade_signals` / `kr_auction_signals`에 미리 계산합니다(`kr_refresh_due_signals`, 12분마다). 계산식은 `valuation.ts`와 같고, 실데이터로 대조했습니다.
   - 단지는 시군구+법정동+지번으로 구분합니다(승인된 실거래가 API에는 aptSeq가 없음).
   - 좌표는 `geocode` 함수가 NCP Geocoding으로 10분마다 채웁니다(`kr_geo`).
+- **AI 검색 에이전트** (지도 검색 상단): 마이크(브라우저 음성 인식, 한국어) 또는 글자로 "강남구 15억 이하 국평 20% 싼 거"처럼 말하면 조건으로 바꿔 검색합니다. 지금 걸린 조건을 이어받아 "더 싼 순으로" 같은 후속 요청도 됩니다.
+  - `ai-search` 함수가 Claude(`claude-opus-5-5`, 구조화 출력)로 해석하고, 결과는 `normalizeFilters`로 검증합니다.
+  - `ANTHROPIC_API_KEY`가 없거나 사용량 한도(접속자당 시간당 30회, 사이트 하루 1000회, `kr_ai_take`)를 넘으면 규칙 기반 해석기(`ruleParse`)가 대신 답합니다.
 - **관심 매물** (`/watch`, 로그인 필요): 내가 본 매물의 호가를 입력하면 같은 단지·비슷한 면적의 최근 실거래가와 비교합니다.
   - 시세보다 5~15% 싸면 추천
   - 15~25% 싸면 "싼 이유 확인"
@@ -39,6 +42,7 @@ pnpm check                   # typecheck + lint + test
 
 - Edge Function secret: `NAVER_MAP_CLIENT_ID`, `NAVER_MAP_CLIENT_SECRET` (NCP Maps 앱, Dynamic Map + Geocoding, Web 서비스 URL에 사이트 주소 등록)
   - `map-config` 함수가 Client ID를 지도 화면에 넘겨 줍니다(공개 값).
+- Edge Function secret: `ANTHROPIC_API_KEY` (AI 검색, 선택)
 - Edge Function secret: `MOLIT_SERVICE_KEY`
   - data.go.kr 인증키(Decoding)
   - 온비드도 이 키를 씁니다. 다르면 `ONBID_SERVICE_KEY`를 따로 넣습니다.
