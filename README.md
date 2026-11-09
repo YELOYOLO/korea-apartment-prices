@@ -22,7 +22,7 @@
 
 ```sh
 pnpm install
-cp .env.example .env.local   # NEXT_PUBLIC_SUPABASE_ANON_KEY 채우기
+cp .env.example .env.local
 pnpm dev
 pnpm check                   # typecheck + lint + test
 ```
