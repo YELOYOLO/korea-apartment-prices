@@ -37,7 +37,7 @@ const SPEECH_ERRORS: Record<string, string> = {
   network: "음성 인식 서버에 연결하지 못했어요. 글자로 입력해 주세요.",
 };
 
-export function AgentBar({ filters, onApply }: { filters: SearchFilters; onApply: (f: SearchFilters) => void }) {
+export function AgentBar({ filters, onApply, examples = EXAMPLES, autoFocus = false }: { filters: SearchFilters; onApply: (f: SearchFilters) => void; examples?: string[]; autoFocus?: boolean }) {
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -137,6 +137,8 @@ export function AgentBar({ filters, onApply }: { filters: SearchFilters; onApply
           id="agent-q"
           value={text}
           maxLength={300}
+          autoFocus={autoFocus}
+          enterKeyHint="search"
           onChange={(e) => setText(e.target.value)}
           placeholder={listening ? "듣고 있어요…" : "예: 강남구 15억 이하 국평 20% 싼 거"}
           className="min-h-11 min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-base"
@@ -157,7 +159,7 @@ export function AgentBar({ filters, onApply }: { filters: SearchFilters; onApply
         </p>
       ) : (
         <ul className="flex flex-wrap gap-1.5" aria-label="예시 질문">
-          {EXAMPLES.map((ex) => (
+          {examples.map((ex) => (
             <li key={ex}>
               <button type="button" onClick={() => void ask(ex)} disabled={busy} className="min-h-9 rounded-full border border-border bg-surface px-3 text-xs">
                 {ex}

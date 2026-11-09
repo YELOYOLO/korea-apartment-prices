@@ -1,4 +1,5 @@
 import Link from "next/link";
+import HomeSearch from "@/components/HomeSearch";
 import { buttonClass } from "@/components/ui";
 
 export default function Home() {
@@ -13,8 +14,16 @@ export default function Home() {
         <p className="max-w-2xl text-text-secondary">
           지역마다 대장 아파트를 골라 시세보다 15% 이상 싸게 거래된 건을 모으고, 찾아본 매물의 호가와 온비드 공매 물건을 같은 단지·같은 면적의 최근 국토교통부 실거래가와 비교합니다. 전국 256개 시군구 아파트 매매가 대상입니다.
         </p>
+        <div className="max-w-2xl space-y-1">
+          <h2 className="text-sm font-bold text-text-secondary">찾는 집을 말하거나 입력하세요</h2>
+          <HomeSearch />
+          <p className="text-xs text-muted">지역·가격·면적·할인율·단지명을 알아듣고 지도 검색으로 바로 보여 드려요. 🎤를 누르면 음성으로 검색합니다.</p>
+        </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/bargains" className={buttonClass("primary")}>
+          <Link href="/map" className={buttonClass("primary")}>
+            지도에서 찾기
+          </Link>
+          <Link href="/bargains" className={buttonClass("secondary")}>
             대장 아파트 급매 보기
           </Link>
           <Link href="/watch" className={buttonClass("secondary")}>
