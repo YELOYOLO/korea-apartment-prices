@@ -234,9 +234,10 @@ function ItemCard({ i }: { i: SearchItem }) {
   );
 }
 
-function clusterHtml(c: Cluster<GeoSearchItem>): string {
-  const base =
-    "display:inline-block;white-space:nowrap;padding:3px 8px;border-radius:999px;font:700 12px/1.3 system-ui,sans-serif;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.35);border:2px solid #fff;transform:translate(-50%,-100%);cursor:pointer";
+function clusterHtml(c: Cluster<GeoSearchItem>, selected = false): string {
+  const base = `display:inline-block;white-space:nowrap;padding:${selected ? "5px 10px" : "3px 8px"};border-radius:999px;font:700 ${selected ? 14 : 12}px/1.3 system-ui,sans-serif;color:#fff;box-shadow:${
+    selected ? "0 0 0 3px #111,0 2px 8px rgba(0,0,0,.5)" : "0 1px 4px rgba(0,0,0,.35)"
+  };border:2px solid #fff;transform:translate(-50%,-100%);cursor:pointer`;
   if (c.items.length === 1) {
     const i = c.items[0]!;
     return `<div style="${base};background:${KIND_COLOR[i.kind]}">${markerLabel(i.priceKrw ?? 0, i.discount)}</div>`;
@@ -384,7 +385,8 @@ export default function SearchMap() {
     }
   });
   const [sheet, setSheet] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  /** Ids of the items of the tapped marker (kept across zoom levels). */
+  const [selected, setSelected] = useState<string[] | null>(null);
   const [listCount, setListCount] = useState(30);
 
   const codes = regionCodes(filters);
@@ -403,6 +405,7 @@ export default function SearchMap() {
   const [authFailed, setAuthFailed] = useState(false);
   const mapEl = useRef<HTMLDivElement>(null);
   const programmatic = useRef(false);
+  const lastMarkerTap = useRef(0);
   const [zoom, setZoom] = useState(11);
   const [moved, setMoved] = useState(false);
 
@@ -414,6 +417,10 @@ export default function SearchMap() {
         if (cancelled || !mapEl.current) return;
         programmatic.current = true; // the first idle is the initial view, not a user move
         const map = new maps.Map(mapEl.current, { center: new maps.LatLng(37.5665, 126.978), zoom: 11, zoomControl: true });
+        maps.Event.addListener(map, "click", () => {
+          // a marker tap can also reach the map: only close for taps on empty map
+          if (Date.now() - lastMarkerTap.current > 400) setSelected(null);
+        });
         maps.Event.addListener(map, "idle", () => {
           setZoom(map.getZoom());
           if (programmatic.current) programmatic.current = false;
@@ -445,6 +452,7 @@ export default function SearchMap() {
   }, [geoItems, mapReady, filters.bounds]);
 
   const clusters = useMemo(() => clusterItems(geoItems, zoom), [geoItems, zoom]);
+  const isSelected = useCallback((c: Cluster<GeoSearchItem>) => Boolean(selected?.length) && c.items.some((i) => selected!.includes(i.id)), [selected]);
   useEffect(() => {
     const m = mapRef.current;
     if (!m || !mapReady) return;
@@ -454,8 +462,8 @@ export default function SearchMap() {
         position: new m.maps.LatLng(c.lat, c.lng),
         map: m.map,
         title: c.items.length === 1 ? c.items[0]!.name : `${c.items.length}건`,
-        icon: { content: clusterHtml(c) },
-        zIndex: Math.round((c.items[0]!.discount ?? 0) * 1000),
+        icon: { content: clusterHtml(c, isSelected(c)) },
+        zIndex: isSelected(c) ? 100_000 : Math.round((c.items[0]!.discount ?? 0) * 1000),
       });
       m.maps.Event.addListener(mk, "click", () => {
         const sameSpot = c.items.every((i) => i.lat === c.items[0]!.lat && i.lng === c.items[0]!.lng);
@@ -463,13 +471,16 @@ export default function SearchMap() {
           programmatic.current = true;
           m.map.setCenter(new m.maps.LatLng(c.lat, c.lng));
           m.map.setZoom(Math.min(zoom + 2, 16));
-        } else setSelected(c.key);
+        } else {
+          lastMarkerTap.current = Date.now();
+          setSelected(c.items.map((i) => i.id));
+        }
       });
       return mk;
     });
-  }, [clusters, mapReady, zoom]);
+  }, [clusters, mapReady, zoom, isSelected]);
 
-  const selectedItems = clusters.find((c) => c.key === selected)?.items ?? null;
+  const selectedItems = useMemo(() => (selected ? geoItems.filter((i) => selected.includes(i.id)) : null), [selected, geoItems]);
 
   const searchHere = () => {
     const m = mapRef.current;
@@ -613,6 +624,21 @@ export default function SearchMap() {
                 현재 지도 영역에서 검색
               </button>
             )}
+            {selectedItems && selectedItems.length > 0 && (
+              <section aria-label="선택한 매물" className="absolute inset-x-0 bottom-0 z-20 max-h-[75%] overflow-y-auto rounded-xl border border-border bg-surface p-3 shadow-2xl">
+                <div className="sticky -top-3 z-10 -mx-3 -mt-3 mb-2 flex items-center justify-between border-b border-border bg-surface px-3 py-1">
+                  <h2 className="text-sm font-bold">선택한 매물 {selectedItems.length}건</h2>
+                  <button type="button" className="min-h-11 px-3 text-sm font-semibold text-muted" onClick={() => setSelected(null)} aria-label="선택한 매물 닫기">
+                    닫기 ✕
+                  </button>
+                </div>
+                <ul className="space-y-3">
+                  {selectedItems.map((i) => (
+                    <ItemCard key={i.id} i={i} />
+                  ))}
+                </ul>
+              </section>
+            )}
             <ul className="pointer-events-none absolute bottom-2 left-2 z-10 space-y-0.5 rounded-lg bg-surface/90 p-2 text-xs" aria-label="범례">
               {KINDS.map((k) => (
                 <li key={k}>
@@ -641,23 +667,7 @@ export default function SearchMap() {
           }
         />
       ) : filters.view === "map" ? (
-        selectedItems ? (
-          <section aria-label="선택한 위치" className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold">선택한 위치 {selectedItems.length}건</h2>
-              <button type="button" className="min-h-11 px-2 text-sm text-muted" onClick={() => setSelected(null)}>
-                닫기
-              </button>
-            </div>
-            <ul className="space-y-3">
-              {selectedItems.map((i) => (
-                <ItemCard key={i.id} i={i} />
-              ))}
-            </ul>
-          </section>
-        ) : (
-          <p className="text-sm text-text-secondary">지도의 마커를 누르면 거래·공매 상세(비교 시세, 산정 방법, 출처)가 여기에 나옵니다. 묶음 마커는 누르면 확대됩니다.</p>
-        )
+        <p className="text-sm text-text-secondary">지도의 마커를 누르면 지도 위에 매물 카드(비교 시세, 산정 방법, 출처, 매물 링크)가 열립니다. 묶음 마커는 누르면 확대됩니다.</p>
       ) : (
         <section aria-label="검색 결과 목록" className="space-y-3">
           <ul className="space-y-3">
