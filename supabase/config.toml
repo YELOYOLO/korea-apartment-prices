@@ -4,3 +4,9 @@ project_id = "mydream"
 [functions.sync]
 # Must stay true: the function trusts the service_role claim only because the gateway verified the JWT.
 verify_jwt = true
+
+[functions.map-config]
+verify_jwt = false
+
+[functions.geocode]
+verify_jwt = true

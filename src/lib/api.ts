@@ -401,3 +401,25 @@ export async function tradesForFlagships(client: Client, list: Flagship[], since
   }
   return out;
 }
+
+/** Map coordinates (kr_geo, 0003) for lot keys "<LAWD_CD>|<법정동>|<지번>"; only found lots. */
+export async function geoPoints(client: Client, keys: string[]): Promise<Map<string, { lat: number; lng: number }>> {
+  const out = new Map<string, { lat: number; lng: number }>();
+  const uniq = [...new Set(keys)];
+  for (let i = 0; i < uniq.length; i += 100) {
+    const rows = unwrap(await client.from("kr_geo").select("key, lat, lng").eq("status", "ok").in("key", uniq.slice(i, i + 100))) as Array<{ key: string; lat: number; lng: number }>;
+    for (const r of rows) out.set(r.key, { lat: Number(r.lat), lng: Number(r.lng) });
+  }
+  return out;
+}
+
+/** The NCP Maps Client ID from the public map-config function, or null when the map is not set up. */
+export async function naverMapClientId(): Promise<string | null> {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  const res = await fetch(`${base}/functions/v1/map-config`);
+  if (res.status === 503) return null;
+  if (!res.ok) throw new ApiError(`지도 설정을 불러오지 못했습니다 (HTTP ${res.status}).`);
+  const body = (await res.json()) as { naverMapClientId?: string };
+  return body.naverMapClientId ?? null;
+}

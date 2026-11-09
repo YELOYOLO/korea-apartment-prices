@@ -7,6 +7,7 @@ import { getClient } from "@/lib/supabase";
 
 const NAV = [
   { href: "/bargains", label: "대장 급매" },
+  { href: "/map", label: "지도" },
   { href: "/watch", label: "내 관심 매물" },
   { href: "/auctions", label: "공매 물건" },
 ];

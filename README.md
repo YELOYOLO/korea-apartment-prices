@@ -4,6 +4,7 @@
 
 - **대장 아파트 급매** (`/bargains`): 시군구마다 ㎡당 가격이 가장 높은 3개 단지(최근 1년 거래 5건 이상)를 골라, 최근 90일 동안 시세보다 15% 이상 싸게 거래된 건과 최저가가 시세의 85% 이하인 공매를 보여줍니다.
   - 네이버·KB 매물은 자동 수집하지 않습니다(공개 API 없음, 약관상 자동 수집 금지). 단지마다 검색 링크를 붙입니다.
+- **지도** (`/map`): 네이버 지도(NCP Maps) 위에 대장 아파트, 급매 거래가 있는 단지, 싼 공매를 핀으로 보여줍니다. 좌표는 `geocode` 함수가 NCP Geocoding으로 매시간 채웁니다(`kr_geo`).
 - **관심 매물** (`/watch`, 로그인 필요): 내가 본 매물의 호가를 입력하면 같은 단지·비슷한 면적의 최근 실거래가와 비교합니다.
   - 시세보다 5~15% 싸면 추천
   - 15~25% 싸면 "싼 이유 확인"
@@ -31,6 +32,8 @@ pnpm check                   # typecheck + lint + test
 
 ## 운영 설정
 
+- Edge Function secret: `NAVER_MAP_CLIENT_ID`, `NAVER_MAP_CLIENT_SECRET` (NCP Maps 앱, Dynamic Map + Geocoding, Web 서비스 URL에 사이트 주소 등록)
+  - `map-config` 함수가 Client ID를 지도 화면에 넘겨 줍니다(공개 값).
 - Edge Function secret: `MOLIT_SERVICE_KEY`
   - data.go.kr 인증키(Decoding)
   - 온비드도 이 키를 씁니다. 다르면 `ONBID_SERVICE_KEY`를 따로 넣습니다.

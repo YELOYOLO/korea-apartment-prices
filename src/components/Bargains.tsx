@@ -1,20 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { valueAuctionItem, type AuctionValuation } from "@kr/auction.ts";
-import { BARGAIN_THRESHOLD, findBargainDeals, listingSearchLinks, type BargainDeal, type BargainWarning, type Flagship } from "@kr/bargains.ts";
-import { KR_REGIONS, krRegion } from "@kr/regions.ts";
+import { useState } from "react";
+import type { AuctionValuation } from "@kr/auction.ts";
+import { BARGAIN_THRESHOLD, listingSearchLinks, type BargainDeal, type BargainWarning, type Flagship } from "@kr/bargains.ts";
 import { formatKrwShort, M2_PER_PYEONG } from "@kr/valuation.ts";
-import * as api from "@/lib/api";
-import { formatKst, monthsAgo } from "@/lib/format";
-import { getClient } from "@/lib/supabase";
-import { RegionPicker, readStoredRegion, storeRegion, type Region } from "./RegionPicker";
+import { formatKst } from "@/lib/format";
+import { sggName, useBargainData } from "@/lib/useBargainData";
+import { RegionPicker } from "./RegionPicker";
 import { Badge, EmptyState, ErrorState, Loading } from "./ui";
-
-const REGION_KEY = "md.bargainRegion";
-/** A 공매 counts as a bargain when the minimum bid is at most this share of market value. */
-const AUCTION_MAX_RATIO = 1 - BARGAIN_THRESHOLD;
 
 const WARN: Record<BargainWarning, string> = {
   directDeal: "직거래: 가족 간 거래 등 특수한 거래일 수 있습니다.",
@@ -25,9 +18,8 @@ const WARN: Record<BargainWarning, string> = {
 
 const pct = (r: number) => Math.round(r * 1000) / 10;
 const pyeong = (m2: number) => Math.round(m2 / M2_PER_PYEONG);
-const sggName = (code: string) => krRegion(code)?.name ?? code;
 
-function Links({ f }: { f: Pick<Flagship, "aptName" | "umdName" | "lawdCd"> }) {
+export function Links({ f }: { f: Pick<Flagship, "aptName" | "umdName" | "lawdCd"> }) {
   const l = listingSearchLinks(f, sggName(f.lawdCd));
   const cls = "min-h-11 content-center rounded-lg border border-border px-3 text-sm font-semibold text-brand-text hover:bg-surface-muted";
   return (
@@ -42,7 +34,7 @@ function Links({ f }: { f: Pick<Flagship, "aptName" | "umdName" | "lawdCd"> }) {
   );
 }
 
-function DealCard({ d }: { d: BargainDeal }) {
+export function DealCard({ d }: { d: BargainDeal }) {
   const [open, setOpen] = useState(false);
   const t = d.trade;
   const e = d.estimate;
@@ -106,7 +98,7 @@ function DealCard({ d }: { d: BargainDeal }) {
   );
 }
 
-function AuctionCard({ v }: { v: AuctionValuation }) {
+export function AuctionCard({ v }: { v: AuctionValuation }) {
   const i = v.item;
   return (
     <li className="space-y-1 rounded-xl border border-border bg-surface p-4" data-testid="bargain-auction">
@@ -150,54 +142,7 @@ function FlagshipRow({ f, deals }: { f: Flagship; deals: number }) {
 }
 
 export default function Bargains() {
-  const [region, setRegionState] = useState<Region>(() => {
-    const r = readStoredRegion(REGION_KEY);
-    return r.sido ? r : { sido: "서울특별시", lawdCd: null };
-  });
-  const setRegion = (r: Region) => {
-    setRegionState(r);
-    storeRegion(REGION_KEY, r);
-  };
-  const codes = useMemo(
-    () => (region.lawdCd ? [region.lawdCd] : region.sido ? KR_REGIONS.filter((r) => r.sido === region.sido).map((r) => r.code) : []),
-    [region.sido, region.lawdCd],
-  );
-  const flags = useQuery({ queryKey: ["flagships", codes], enabled: codes.length > 0, queryFn: () => api.flagships(getClient(), codes) });
-  const list = useMemo(() => flags.data ?? [], [flags.data]);
-  const trades = useQuery({
-    queryKey: ["flagshipTrades", list.map((f) => f.aptSeq).join(",")],
-    enabled: list.length > 0,
-    queryFn: () => api.tradesForFlagships(getClient(), list, monthsAgo(13)),
-  });
-  const auctions = useQuery({
-    queryKey: ["auctions", region.sido, region.lawdCd],
-    enabled: Boolean(region.sido) && list.length > 0,
-    queryFn: () => api.auctionApartments(getClient(), { sido: region.sido as string, lawdCd: region.lawdCd }),
-  });
-
-  const deals = useMemo(() => (trades.data ? findBargainDeals(trades.data) : []), [trades.data]);
-  const dealsBySeq = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const d of deals) if (d.trade.aptSeq) m.set(d.trade.aptSeq, (m.get(d.trade.aptSeq) ?? 0) + 1);
-    return m;
-  }, [deals]);
-  const cheapAuctions = useMemo(() => {
-    if (!trades.data || !auctions.data) return [];
-    const spots = new Set(list.map((f) => `${f.lawdCd}|${f.umdName}|${f.jibun}`));
-    return auctions.data.items
-      .filter((i) => spots.has(`${i.lawdCd}|${i.emd}|${i.jibun}`))
-      .map((i) => valueAuctionItem(i, trades.data))
-      .filter((v) => v.ratio !== null && v.ratio <= AUCTION_MAX_RATIO)
-      .sort((a, b) => (a.ratio ?? 1) - (b.ratio ?? 1));
-  }, [list, trades.data, auctions.data]);
-  const byRegion = useMemo(() => {
-    const m = new Map<string, Flagship[]>();
-    for (const f of list) m.set(f.lawdCd, [...(m.get(f.lawdCd) ?? []), f]);
-    return [...m.entries()].sort((a, b) => sggName(a[0]).localeCompare(sggName(b[0]), "ko"));
-  }, [list]);
-
-  const loading = flags.isLoading || (list.length > 0 && trades.isLoading);
-  const error = flags.error ?? trades.error;
+  const { region, setRegion, list, deals, dealsBySeq, cheapAuctions, byRegion, loading, error, retry } = useBargainData();
 
   return (
     <div className="space-y-6">
@@ -211,7 +156,7 @@ export default function Bargains() {
       ) : loading ? (
         <Loading rows={3} />
       ) : error ? (
-        <ErrorState error={error} onRetry={() => (flags.isError ? flags.refetch() : trades.refetch())} />
+        <ErrorState error={error} onRetry={retry} />
       ) : !list.length ? (
         <EmptyState
           title="아직 대장 아파트를 고를 실거래가 부족합니다"
@@ -255,7 +200,7 @@ export default function Bargains() {
                 <h3 className="pt-3 text-sm font-bold text-text-secondary">{sggName(code)}</h3>
                 <ul>
                   {fs.map((f) => (
-                    <FlagshipRow key={f.aptSeq} f={f} deals={dealsBySeq.get(f.aptSeq) ?? 0} />
+                    <FlagshipRow key={f.aptSeq} f={f} deals={dealsBySeq.get(f.aptSeq)?.length ?? 0} />
                   ))}
                 </ul>
               </div>
